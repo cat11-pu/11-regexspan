@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>regexspan 模式跨度工作台</title>
+<style>
+body{font-family:system-ui,sans-serif;margin:0;background:#101418;color:#e8eef4}
+.wrap{display:grid;grid-template-columns:minmax(460px,1fr) 330px;gap:16px;padding:18px;align-items:start}
+.card{background:#18202a;border:1px solid #263241;border-radius:12px;padding:12px}
+.cells{display:flex;flex-wrap:wrap;gap:2px;background:#0c1116;border-radius:10px;padding:10px;min-height:52px}
+.cell{width:22px;height:30px;line-height:30px;text-align:center;border-radius:4px;background:#1b2530;font-family:ui-monospace,monospace}
+.cell.hit{background:#1f4d3a;color:#b9ffd8}
+.cell.start{border-bottom:3px solid #f5b73b}
+.cell.end{border-bottom:3px solid #7aa2ff}
+button{font:inherit;padding:5px 11px;margin:0 8px 8px 0;border:1px solid #2b3c4c;border-radius:8px;background:#1d2733;color:#e8eef4;cursor:pointer}
+button.main{background:#2f6df5;border-color:#2f6df5}
+input,select{font:inherit;padding:4px 8px;border:1px solid #2b3c4c;border-radius:8px;background:#0c1116;color:#e8eef4}
+input{width:190px}
+table{border-collapse:collapse;font-size:12px;width:100%}
+td,th{border-bottom:1px solid #263241;padding:3px 5px;text-align:left}
+pre{background:#0c1116;color:#9fd0ff;padding:10px;border-radius:8px;overflow:auto;font-size:12px}
+.chip{display:inline-block;font-size:12px;padding:2px 9px;border-radius:999px;background:#22303f;color:#9fd0ff;margin-right:6px}
+.chip.bad{background:#3a1f2b;color:#ff9aa9}
+</style></head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="cells" id="cells"></div>
+    <div id="legend" style="margin:10px 0"></div>
+    <table id="board"><thead><tr><th>模式</th><th>文本</th><th>起点</th><th>终点</th></tr></thead><tbody></tbody></table>
+    <pre id="out">还没跑</pre>
+  </div>
+  <div class="card">
+    <h2 style="font-size:13px;color:#8ea2cc;margin:0 0 8px">登记与定位</h2>
+    <div>模式 <input id="pattern" value="a[bc]*d"></div>
+    <div style="margin:6px 0">文本 <input id="text" value="abcdbcd"></div>
+    <div><button id="doRegister" class="main">登记</button><button id="doLocate">定位</button></div>
+    <div id="log" style="font-size:12px;color:#8ea2cc;margin-top:8px">点上面的按钮开始。</div>
+  </div>
+</div>
+<div id="scene" hidden>{
+  "state": { "patterns": [], "records": [], "rejected": [], "compiled": 0, "hits": 0, "misses": 0 },
+  "events": [
+    { "kind": "register", "pattern": "a[bc]*d" },
+    { "kind": "register", "pattern": "a[dc-b]x" },
+    { "kind": "register", "pattern": "(a|ab)" },
+    { "kind": "locate", "pattern": "a[bc]*d", "text": "abcdbcd" },
+    { "kind": "register", "pattern": "?a" },
+    { "kind": "register", "pattern": "(ab|cd)+" },
+    { "kind": "register", "pattern": "a[bc]*d" },
+    { "kind": "locate", "pattern": "(a|ab)", "text": "abz" },
+    { "kind": "register", "pattern": "^ab|cd$" },
+    { "kind": "register", "pattern": "(ab" },
+    { "kind": "locate", "pattern": "(ab|cd)+", "text": "abcdab" },
+    { "kind": "register", "pattern": "a*" },
+    { "kind": "locate", "pattern": "^ab|cd$", "text": "abz" },
+    { "kind": "locate", "pattern": "a*", "text": "baa" },
+    { "kind": "locate", "pattern": "a[bc]*d", "text": "xy" },
+    { "kind": "locate", "pattern": "zzz", "text": "abc" }
+  ]
+}</div>
+<script type="module">
+import { render } from "./app.js";
+import { spanOf } from "./engine.js";
+
+const spec = JSON.parse(document.getElementById("scene").textContent);
+const cells = document.getElementById("cells");
+
+function draw() {
+  const view = render(spec);
+  document.getElementById("out").textContent = JSON.stringify(view, null, 1);
+  const text = document.getElementById("text").value;
+  let span = null;
+  try { span = spanOf(document.getElementById("pattern").value, text); } catch (error) { span = null; }
+  cells.textContent = "";
+  for (let at = 0; at < text.length; at += 1) {
+    const cell = document.createElement("div");
+    cell.className = "cell";
+    if (span && at >= span[0] && at < span[1]) { cell.className += " hit"; }
+    if (span && at === span[0]) { cell.className += " start"; }
+    if (span && at === span[1] - 1) { cell.className += " end"; }
+    cell.textContent = text[at];
+    cells.appendChild(cell);
+  }
+  const body = document.querySelector("#board tbody");
+  body.textContent = "";
+  for (const row of view.records) {
+    const tr = document.createElement("tr");
+    for (const cell of [row[0], row[1], String(row[2]), String(row[3])]) {
+      const td = document.createElement("td");
+      td.textContent = cell;
+      tr.appendChild(td);
+    }
+    body.appendChild(tr);
+  }
+  const legend = document.getElementById("legend");
+  legend.textContent = "";
+  const chip = function (label, bad) {
+    const span_el = document.createElement("span");
+    span_el.className = bad ? "chip bad" : "chip";
+    span_el.textContent = label;
+    legend.appendChild(span_el);
+  };
+  chip("模式 " + view.patterns.length);
+  chip("命中 " + view.hit_count);
+  chip("未命中 " + view.miss_count);
+  chip("编译成功 " + view.compiled);
+  chip("跨度 " + (span ? span[0] + " 到 " + span[1] : "未命中"), span === null);
+}
+
+document.getElementById("doRegister").addEventListener("click", function () {
+  spec.events.push({ kind: "register", pattern: document.getElementById("pattern").value });
+  draw();
+});
+document.getElementById("doLocate").addEventListener("click", function () {
+  spec.events.push({ kind: "locate", pattern: document.getElementById("pattern").value,
+                     text: document.getElementById("text").value });
+  draw();
+});
+draw();
+</script>
+</body>
+</html>

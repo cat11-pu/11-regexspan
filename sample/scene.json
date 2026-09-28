@@ -1,0 +1,21 @@
+{
+  "state": { "patterns": [], "records": [], "rejected": [], "compiled": 0, "hits": 0, "misses": 0 },
+  "events": [
+    { "kind": "register", "pattern": "a[bc]*d" },
+    { "kind": "register", "pattern": "a[dc-b]x" },
+    { "kind": "register", "pattern": "(a|ab)" },
+    { "kind": "locate", "pattern": "a[bc]*d", "text": "abcdbcd" },
+    { "kind": "register", "pattern": "?a" },
+    { "kind": "register", "pattern": "(ab|cd)+" },
+    { "kind": "register", "pattern": "a[bc]*d" },
+    { "kind": "locate", "pattern": "(a|ab)", "text": "abz" },
+    { "kind": "register", "pattern": "^ab|cd$" },
+    { "kind": "register", "pattern": "(ab" },
+    { "kind": "locate", "pattern": "(ab|cd)+", "text": "abcdab" },
+    { "kind": "register", "pattern": "a*" },
+    { "kind": "locate", "pattern": "^ab|cd$", "text": "abz" },
+    { "kind": "locate", "pattern": "a*", "text": "baa" },
+    { "kind": "locate", "pattern": "a[bc]*d", "text": "xy" },
+    { "kind": "locate", "pattern": "zzz", "text": "abc" }
+  ]
+}
